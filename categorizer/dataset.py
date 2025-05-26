@@ -1,6 +1,7 @@
 #to save and load dataset csv
 
 import pandas as pd #for dataframe handling
+import os
 from pathlib import Path #for managing file paths (esp clean for cross-platform)
 
 DATA_PATH = Path("websites_dataset.csv")
@@ -19,3 +20,10 @@ def add_entry(url: str, text: str, label: str):
     #ignore_index=True reassigns row numbers cleanly
     df.to_csv(DATA_PATH, index=False) #save the updated df back to csv file
     #index=False prevents pandas from writing row nums back into csv (coz not needed)
+
+def get_dataset_size():
+    if not os.path.isfile(DATA_PATH):
+        return 0
+
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        return sum(1 for line in f) - 1  # minus header

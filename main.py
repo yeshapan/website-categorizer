@@ -2,33 +2,52 @@
 
 from categorizer.scraper import scrape_website
 from categorizer.preprocess import preprocess_text
-from categorizer.dataset import add_entry, load_dataset
+from categorizer.dataset import add_entry, get_dataset_size
 from categorizer.model import train_model
 
-def main():
-    print("\n Website Categorizer")
-    url = input("Enter website URL: ").strip()
-    text = scrape_website(url) #scrape text
+def get_user_input():
+    url= input("\nEnter website URL: ").strip()
+    raw_text = scrape_website(url) #scrape text
 
-    if not text:
+    if not raw_text:
         print("Failed to extract website text.")
         return
 
-    cleaned = preprocess_text(text)
     print("\nSample of cleaned text:")
-    print(cleaned[:500] + "...\n") #display initial 500 char (for user to see extracted text preview kinda)
+    text= preprocess_text(raw_text) #cleaned text
+    print(text[:500] + "...\n") #display initial 500 char (for user to see extracted text preview kinda)
 
-    label = input("Manually enter category (e.g. sports, ecommerce, medical...): ").strip().lower() #entered manually during dataset creation
-    add_entry(url, cleaned, label)
+    category = input("Manually enter category (e.g. ecommerce, medical, technology, sports, etc): ").strip().lower() #entered manually during dataset creation
+    return url, text, category
 
-    df = load_dataset()
-    print(f"\nDataset size: {len(df)} records") #load csv and show total num of rows yet (for CLI phase rn)
+def main():
+    print("\n Website Categorizer \n")
 
-    if len(df) >= 200:  #for now we'll train on atleast 200 samples for better accuracy
-        print("\n Training model...")
-        train_model(df)
+    try:
+        num_entries= int(input("How many websites would you like to input this time? "))
+    except ValueError:
+        print("Please enter a valid number.")
+        return
+
+    for i in range(num_entries):
+        print(f"\nEntry {i+1} of {num_entries}")
+        url, text, category = get_user_input()
+        add_entry(url, text, category)
+    
+
+    size = get_dataset_size()
+    print(f"\nDataset size: {size} records")
+
+    if size >= 200:
+        choice= input("Do you want to start training the model now? (y/n): ").strip().lower()
+        if choice== "y":
+            print("Training model now..")
+            train_model()
+        else:
+            print("Okay you can add more data if you want")
     else:
-        print("Not enough data to train yet (need at least 200).")
+        print("Not enough data to train yet (need at least 200 records).")
 
+    
 if __name__ == "__main__":
     main()
