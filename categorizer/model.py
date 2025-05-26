@@ -1,0 +1,30 @@
+#using Naive Bayes for now
+
+from sklearn.feature_extraction.text import TfidfVectorizer #to convert text to tf-idf feature matrix
+from sklearn.naive_bayes import MultinomialNB #niave bayes classifier for text data
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+
+def train_model(df):
+    X = df["text"]
+    y = df["category"]
+
+    vectorizer = TfidfVectorizer(max_features=5000) #convert text to nums to feed ML model (only 5000 most imp words used)
+    #Tf: term frequency (frequency of any word)
+    #idf: Inverse document frequency (for unique/imp any word is across all docs)
+    X_vec = vectorizer.fit_transform(X)
+
+    #train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.2, random_state=42)
+    
+    #NB classifier
+    model = MultinomialNB()
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    print(f"\n Model Accuracy: {acc * 100:.2f}%")
+    print("\n Classification Report:")
+    print(classification_report(y_test, y_pred))
+
+    return model, vectorizer
