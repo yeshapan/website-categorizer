@@ -23,7 +23,9 @@ def train_model(df):
     model.fit(X_train, y_train)'''
 
     #Logistic regressor
-    model=LogisticRegression(max_iter=1000, solver= "liblinear", C=5.0)
+    model=LogisticRegression(max_iter=1000, solver= "liblinear", C=5.0, penalty= "l1", class_weight="balanced")
+    #C is to tune regularization
+    '''C=1.0 gives 65.71% accuracy ; C=2.0 gives 71.43% accuracy ; C=5.0 gives 82.86% accuracy ; C=8.0 gives 80.00% accuracy'''
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
