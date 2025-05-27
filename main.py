@@ -23,31 +23,41 @@ def get_user_input():
 def main():
     print("\n Website Categorizer \n")
 
-    try:
-        num_entries= int(input("How many websites would you like to input this time? "))
-    except ValueError:
-        print("Please enter a valid number.")
-        return
+    while True:
+        size = get_dataset_size()
+        print(f"\nCurrent dataset size: {size} records")
 
-    for i in range(num_entries):
-        print(f"\nEntry {i+1} of {num_entries}")
-        url, text, category = get_user_input()
-        add_entry(url, text, category)
-    
+        if size >= 150:
+            choice = input("Do you want to start training the model now? (y/n): ").strip().lower()
+            if choice == 'y':
+                print("Training model now..")
+                df = pd.read_csv("websites_dataset.csv")
+                train_model(df)
+                break  #exit after training
+            elif choice == 'n':
+                print("Okay, let's add more data then.")
+                #continue to ask how many websites below
+            else:
+                print("Invalid input. Please enter 'y' or 'n'.")
+                continue  #re-ask this question
 
-    size = get_dataset_size()
-    print(f"\nDataset size: {size} records")
+        # if size<150 or user chose 'n'
+        try:
+            num_entries = int(input("How many websites would you like to input this time? "))
+        except ValueError:
+            print("Please enter a valid number.")
+            continue  # re-ask
 
-    if size >= 150:
-        choice= input("Do you want to start training the model now? (y/n): ").strip().lower()
-        if choice== "y":
-            print("Training model now..")
-            df=pd.read_csv("websites_dataset.csv")
-            train_model(df)
-        else:
-            print("Okay you can add more data if you want")
-    else:
-        print("Not enough data to train yet (need at least 150 records).")
+        for i in range(num_entries):
+            print(f"\nEntry {i + 1} of {num_entries}")
+            user_input = get_user_input()
+            if user_input:
+                url, text, category = user_input
+                add_entry(url, text, category)
+            else:
+                print("Skipping entry due to extraction failure or missing data.")
+
+
 
     
 if __name__ == "__main__":
