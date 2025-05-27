@@ -1,5 +1,5 @@
 # main program for user CLI
-
+import pandas as pd
 from categorizer.scraper import scrape_website
 from categorizer.preprocess import preprocess_text
 from categorizer.dataset import add_entry, get_dataset_size
@@ -38,15 +38,16 @@ def main():
     size = get_dataset_size()
     print(f"\nDataset size: {size} records")
 
-    if size >= 200:
+    if size >= 150:
         choice= input("Do you want to start training the model now? (y/n): ").strip().lower()
         if choice== "y":
             print("Training model now..")
-            train_model()
+            df=pd.read_csv("websites_dataset.csv")
+            train_model(df)
         else:
             print("Okay you can add more data if you want")
     else:
-        print("Not enough data to train yet (need at least 200 records).")
+        print("Not enough data to train yet (need at least 150 records).")
 
     
 if __name__ == "__main__":
