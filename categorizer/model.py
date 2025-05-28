@@ -8,6 +8,7 @@ from sklearn.linear_model import LogisticRegression
 
 def train_model(df):
     X = df["text"]
+    X=X.dropna()
     y = df["category"]
 
     vectorizer = TfidfVectorizer(max_features=5000) #convert text to nums to feed ML model (only 5000 most imp words used to prevent overfitting)
