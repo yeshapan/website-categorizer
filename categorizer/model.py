@@ -1,11 +1,14 @@
-#trying with Random Forest Classifier
-
 from sklearn.feature_extraction.text import TfidfVectorizer #to convert text to tf-idf feature matrix
 #from sklearn.naive_bayes import MultinomialNB #niave bayes classifier for text data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.linear_model import LogisticRegression
 #from sklearn.ensemble import RandomForestClassifier
+import joblib
+import os
+
+model_path = "categorizer/website_categorizer_model.joblib"
+vectorizer_path = "categorizer/website_vectorizer.joblib"
 
 def train_model(df):
     X = df["text"]
@@ -28,7 +31,6 @@ def train_model(df):
     model=LogisticRegression(max_iter=1000, solver= "liblinear", C=7.5, penalty= "l1", class_weight="balanced")
     model.fit(X_train, y_train)
     #C is to tune regularization
-    #C=1.0 gives 65.71% accuracy ; C=2.0 gives 71.43% accuracy ; C=5.0 gives 82.86% accuracy ; C=8.0 gives 80.00% accuracy
     
     '''#Random Forest Classifier
     model = RandomForestClassifier(n_estimators=100, max_depth=None, class_weight="balanced", random_state=42)
@@ -40,4 +42,31 @@ def train_model(df):
     print("\n Classification Report:")
     print(classification_report(y_test, y_pred))
 
+    #return model, vectorizer
+
+    save_model(model, vectorizer)
+
+def save_model(model, vectorizer):
+    joblib.dump(model, model_path)
+    joblib.dump(vectorizer, vectorizer_path)
+    print("Model and vectorizer saved")
+
+def load_model():
+    if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
+        raise FileNotFoundError("file or vectorizer not found: pls train the model first")
+    model= joblib.load(model_path)
+    vectorizer = joblib.load(vectorizer_path)
     return model, vectorizer
+
+def predict_category(url: str):
+    from categorizer.scraper import scrape_website
+    from categorizer.preprocess import preprocess_text
+
+    raw_text = scrape_website(url)
+    clean_text = preprocess_text(raw_text)
+
+    model, vectorizer = load_model()
+    X = vectorizer.transform([clean_text])
+    prediction = model.predict(X)[0]
+
+    return prediction, raw_text[:2000]
