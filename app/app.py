@@ -1,5 +1,8 @@
 #streamlit UI
 
+import sys #GPT's suggestion to fix Streamlit cloud issue without moving app.py to root folder
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
 from categorizer.model import predict_category
@@ -41,7 +44,7 @@ def set_page_config():
 def render_sidebar():
     with st.sidebar:
         st.title("Web Categorizer")
-        st.markdown("A simple ML-powered tool that scrapes the web and classifies a website into categories based on its content.")
+        st.markdown("A simple ML-powered tool that scrapes the web and classifies a website into categories based on its content.(Natural Language Processing)")
         st.markdown("ML model used: *Logistic Regression*")
         st.markdown("@coffee.compile")
 
