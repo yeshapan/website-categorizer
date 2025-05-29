@@ -1,0 +1,7 @@
+beautifulsoup4
+pandas
+scikit_learn
+nltk
+streamlit
+requests
+poetry
