@@ -1,11 +1,35 @@
-# app.py — Streamlit UI for Website Categorization
+#streamlit UI
 
 import streamlit as st
 from categorizer.model import predict_category
+def add_custom_css():
+    st.markdown(
+        """
+        <style>
+        /* Set overall white background */
+        .main {
+            background-color: white;
+            color: #333333
+        }
 
-# -------------------------------
-# 💡 Utility function: Set Page
-# -------------------------------
+        /* Sidebar background light grey */
+        [data-testid="stSidebar"] {
+            background-color: #f0f0f0;
+            color: #333333
+        }
+
+        div.stButton > button {
+            background: linear-gradient(90deg, #ff7e5f, #feb47b, #ff6a95);
+            border: none;
+            color: white;
+            font-weight: 600;
+        </style>
+
+        """,
+        unsafe_allow_html=True,
+    )
+
+#set page is a utility function
 def set_page_config():
     st.set_page_config(
         page_title="Website Categorizer",
@@ -17,16 +41,11 @@ def render_sidebar():
     with st.sidebar:
         st.title("Web Categorizer")
         st.markdown("A simple ML-powered tool that scrapes the web and classifies a website into categories based on its content.")
-
-        st.markdown("---")
-        st.markdown("**Built by:** Your Name / Team")
-        st.markdown("**Model:** Logistic Regression + TF-IDF")
-        st.markdown("**Tech Stack:** Python, Sklearn, Streamlit")
-        st.markdown("")
+        st.markdown("ML model used: *Logistic Regression*")
+        st.markdown("@coffee.compile")
 
 #model interaction
 def predict_section():
-    st.subheader("Enter Website URL")
     url = st.text_input("Paste a valid website URL below", placeholder="https://example.com")
 
     if st.button("Predict Category"):
@@ -55,6 +74,7 @@ def main():
     render_sidebar()
     st.title("Website Category Predictor")
     st.markdown("Use this tool to determine the type of a website using natural language processing and machine learning.")
+    add_custom_css()
     render_main_layout()
 
 
