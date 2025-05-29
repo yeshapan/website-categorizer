@@ -51,6 +51,6 @@ poetry install
 ```bash
 poetry run streamlit run app.py
 ```
-
+> here's a brief demo showing the working of this project on localhost: https://youtu.be/tKsbhTqBQqQ
 
 
