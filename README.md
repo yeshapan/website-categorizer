@@ -1,6 +1,6 @@
 # Website Categorizer
 
-A simple yet powerful ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
+A simple ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
 Built using **Streamlit** for the frontend and a **Logistic Regression** model trained on web content for classification.
 > The dataset created using scraping the web (and stemmed and cleaned text) for this project is included in this repo
 
@@ -13,6 +13,8 @@ Built using **Streamlit** for the frontend and a **Logistic Regression** model t
 -  Displays a preview of extracted text for transparency
 -  Fast and lightweight UI built with Streamlit
 > Note that this project works best with English language websites
+
+> here's a brief demo showing the working of this project on localhost: https://youtu.be/tKsbhTqBQqQ
 
 ## Folder Structure
 ``` bash
@@ -27,9 +29,8 @@ website-categorizer/
 ├── main.py
 ├── websites_dataset.csv        # Sample dataset
 ├── pyproject.toml              # Poetry dependency file
-├── poetry.lock
-├── README.md                   # This file
-└── .gitignore
+├── poetry.lock                  
+└── ReadME.md
 ```
 
 ## Steps to replicate the project:
