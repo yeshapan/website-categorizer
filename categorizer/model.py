@@ -2,8 +2,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer #to convert text to 
 #from sklearn.naive_bayes import MultinomialNB #niave bayes classifier for text data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
-from sklearn.linear_model import LogisticRegression
+#from sklearn.linear_model import LogisticRegression
 #from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.svm import LinearSVC
 import joblib
 import os
 
@@ -15,7 +17,7 @@ def train_model(df):
     X=X.dropna()
     y = df["category"]
 
-    vectorizer = TfidfVectorizer(max_features=5000 ) #convert text to nums to feed ML model (only 5000 most imp words used to prevent overfitting)
+    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1,2), max_df=0.9) #convert text to nums to feed ML model (only 5000 most imp words used to prevent overfitting)
     #Tf: term frequency (frequency of any word)
     #idf: Inverse document frequency (for unique/imp any word is across all docs)
     X_vec = vectorizer.fit_transform(X)
@@ -27,14 +29,22 @@ def train_model(df):
     model = MultinomialNB()
     model.fit(X_train, y_train)'''
 
-    #Logistic regressor
+    '''#Logistic regressor
     model=LogisticRegression(max_iter=1000, solver= "liblinear", C=7.5, penalty= "l1", class_weight="balanced")
     model.fit(X_train, y_train)
-    #C is to tune regularization
+    #C is to tune regularization'''
     
     '''#Random Forest Classifier
     model = RandomForestClassifier(n_estimators=100, max_depth=None, class_weight="balanced", random_state=42)
     model.fit(X_train, y_train)'''
+
+    svm_pipeline = Pipeline([
+    ('clf', LinearSVC(C=1.0))
+    ])
+
+    svm_pipeline.fit(X_train, y_train)
+    svm_accuracy = svm_pipeline.score(X_test, y_test)
+    print(f"SVM Accuracy: {svm_accuracy * 100:.2f}%")
 
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
