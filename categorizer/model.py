@@ -11,6 +11,7 @@ import joblib
 import os
 from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
+import numpy as np
 
 #define paths
 MODEL_DIR = Path("categorizer/models")
@@ -45,6 +46,12 @@ def train_model(df: pd.DataFrame):
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.2, random_state=42)
 
+    #encode labels
+    label_encoder = LabelEncoder()
+    y_train_encoded = label_encoder.fit_transform(y_train)
+    y_test_encoded = label_encoder.transform(y_test)
+    label_classes = label_encoder.classes_ #store original classes
+
     #models definition with basic hyperparameter tuning setup (can be expanded)
     models = {
         "Logistic Regression": {
@@ -56,7 +63,7 @@ def train_model(df: pd.DataFrame):
             "params": {"C": [0.1, 1, 10]}
         },
         "XGBoost": {
-            "model": XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', random_state=42),
+            "model": XGBClassifier(eval_metric='mlogloss', random_state=42, num_class=len(label_classes)),
             "params": {"n_estimators": [50, 100], "learning_rate": [0.05, 0.1]}
         }
     }
@@ -68,11 +75,23 @@ def train_model(df: pd.DataFrame):
         print(f"\nTraining {name}...")
         #using GridSearchCV for hyperparameter tuning
         grid_search = GridSearchCV(model_info["model"], model_info["params"], cv=3, scoring='accuracy', n_jobs=-1) # cv=3 due to small dataset
-        grid_search.fit(X_train, y_train)
-        
-        best_model = grid_search.best_estimator_
+        if name == "XGBoost":
+            grid_search.fit(X_train, y_train_encoded)
+            best_model = grid_search.best_estimator_
+            y_pred_encoded = best_model.predict(X_test)
+            y_pred = label_encoder.inverse_transform(y_pred_encoded) # Decode predictions
+            acc = accuracy_score(y_test, y_pred)
+            test_predictions[name] = y_pred
+        else:
+            grid_search.fit(X_train, y_train)
+            best_model = grid_search.best_estimator_
+            y_pred = best_model.predict(X_test)
+            acc = accuracy_score(y_test, y_pred)
+            test_predictions[name] = y_pred
+
+
         trained_models[name] = best_model
-        
+
         #save individual model
         if name == "Logistic Regression":
             joblib.dump(best_model, LOGISTIC_MODEL_PATH)
@@ -82,9 +101,6 @@ def train_model(df: pd.DataFrame):
             joblib.dump(best_model, XGBOOST_MODEL_PATH)
         print(f"{name} trained and saved with best params: {grid_search.best_params_}")
 
-        y_pred = best_model.predict(X_test)
-        test_predictions[name] = y_pred
-        acc = accuracy_score(y_test, y_pred)
         print(f"{name} Accuracy: {acc * 100:.2f}%")
         # print(f"\nClassification Report for {name}:")
         # print(classification_report(y_test, y_pred, zero_division=0))
@@ -93,11 +109,11 @@ def train_model(df: pd.DataFrame):
     #Ensemble Prediction (Majority Vote)
     #stack predictions from all models for the test set
     stacked_preds = pd.DataFrame(test_predictions).values
-    
+
     #perform majority vote. `keepdims=True` is important for scipy > 1.9.0
     #result of majority_vote will be a tuple (mode_values, mode_counts)
     ensemble_pred_values, _ = majority_vote(stacked_preds, axis=1, keepdims=True)
-    
+
     #ensemble_pred_values is a 2D array, need to flatten it to 1D for accuracy_score
     ensemble_pred_flat = ensemble_pred_values.flatten()
 
@@ -114,25 +130,25 @@ def load_trained_models_and_vectorizer():
     """Loads all trained models and the TF-IDF vectorizer."""
     if not VECTORIZER_PATH.exists():
         raise FileNotFoundError(f"Vectorizer not found at {VECTORIZER_PATH}. Please train the models first.")
-    
+
     vectorizer = joblib.load(VECTORIZER_PATH)
-    
+
     models_to_load = {
         "Logistic Regression": LOGISTIC_MODEL_PATH,
         "SVM": SVM_MODEL_PATH,
         "XGBoost": XGBOOST_MODEL_PATH
     }
-    
+
     loaded_models = {}
     for name, path in models_to_load.items():
         if path.exists():
             loaded_models[name] = joblib.load(path)
         else:
             print(f"Warning: Model file for {name} not found at {path}. It will be excluded from ensemble.")
-            
+
     if not loaded_models:
         raise FileNotFoundError("No trained models found. Please train the models first.")
-        
+
     return vectorizer, loaded_models
 
 #Prediction Logic
@@ -171,7 +187,7 @@ def predict_category_ensemble(url: str):
         return "Error: No models loaded for prediction.", raw_text[:2000]
 
     text_vec = vectorizer.transform([clean_text])
-    
+
     predictions = []
     for model_name, model in models.items():
         try:
@@ -180,13 +196,13 @@ def predict_category_ensemble(url: str):
         except Exception as e:
             print(f"Error predicting with {model_name}: {e}")
             #optionally append a placeholder or handle error differently
-    
+
     if not predictions:
         return "Error: All models failed to predict.", raw_text[:2000]
 
     #perform majority vote
     #majority_vote returns (array_of_modes, array_of_counts)
-    final_prediction_array, _ = majority_vote(predictions, keepdims=False) # keepdims=False for single value
+    final_prediction_array, _ = majority_vote(np.array(predictions), keepdims=False) # keepdims=False for single value, explicitly convert to numpy array
     final_prediction = final_prediction_array #it's already the single most common item
 
     return final_prediction, raw_text[:2000]
