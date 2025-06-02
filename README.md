@@ -21,15 +21,24 @@ Built using **Streamlit** for the frontend and a **Logistic Regression** model t
 website-categorizer/
 ├── app/
 │   └── app.py                  # Streamlit UI
-├── categorizer/                # Model, scraping, and preprocessing logic
-│   ├── model.py
-│   ├── dataset.py
-│   ├── scraper.py
-│   └── preprocess.py
+├── categorizer/               
+│   ├── __init__.py         #makes 'categorizer' a Python package (important for imports)
+│   ├── model.py            #handles training, prediction, and management of multiple ML models
+│   ├── dataset.py          #for loading and managing dataset
+│   ├── scraper.py          #for fetching website content
+│   ├── preprocess.py       #for cleaning/preparing text data
+│   └── models/
+│       ├── website_vectorizer.joblib           #TF-IDF vectorizer
+│       ├── logistic_regression_model.joblib    #Logistic Regression model
+│       ├── svm_model.joblib                    #SVM model
+│       └── xgboost_model.joblib                #XGBoost model
+├── .cache/                     #directory for caching (created by joblib.Memory, add to .gitignore)
 ├── main.py
-├── websites_dataset.csv        # Sample dataset
-├── pyproject.toml              # Poetry dependency file
-├── poetry.lock                  
+├── websites_dataset.csv        #dataset
+├── pyproject.toml              #Poetry dependency file
+├── poetry.lock                 #Poetry lock file
+├── Dockerfile                  #Instructions to build Docker image
+├── .dockerignore               #specifies which files to ignore while building the Docker image
 └── ReadME.md
 ```
 

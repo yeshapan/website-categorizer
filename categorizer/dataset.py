@@ -1,29 +1,40 @@
 #to save and load dataset csv
 
-import pandas as pd #for dataframe handling
+import pandas as pd
 import os
-from pathlib import Path #for managing file paths (esp clean for cross-platform)
+from pathlib import Path
 
 DATA_PATH = Path("websites_dataset.csv")
 
-def load_dataset() -> pd.DataFrame: #load dataset as pandas df
+def load_dataset() -> pd.DataFrame:
     if DATA_PATH.exists():
-        return pd.read_csv(DATA_PATH)
+        df = pd.read_csv(DATA_PATH)
+        #ensure column names are consistent, your model.py uses 'text' and 'category'
+        df = df.rename(columns={"url": "url", "text": "text", "label": "category"}) # Assuming 'label' was old name
+        return df
     else:
-        return pd.DataFrame(columns=["url", "text", "label"]) #for 1st iteration - file doesn't exist so it'll create a df with these 3 columns
+        #ensure columns match what add_entry and model expects
+        return pd.DataFrame(columns=["url", "text", "category"])
 
-#add a new record to df
-def add_entry(url: str, text: str, label: str):
+def add_entry(url: str, text: str, category: str):
     df = load_dataset()
-    new_row = pd.DataFrame([[url, text, label]], columns=df.columns) #create new row (use passed values)
-    df = pd.concat([df, new_row], ignore_index=True) #combine new row into existing df
-    #ignore_index=True reassigns row numbers cleanly
-    df.to_csv(DATA_PATH, index=False) #save the updated df back to csv file
-    #index=False prevents pandas from writing row nums back into csv (coz not needed)
+    new_row_data = {"url": url, "text": text, "category": category}
+    #handle case where df might have other columns not being added now
+    new_row = pd.DataFrame([new_row_data], columns=df.columns if not df.empty else ["url", "text", "category"])
+    
+    df = pd.concat([df, new_row], ignore_index=True)
+    df.to_csv(DATA_PATH, index=False)
 
-def get_dataset_size():
-    if not os.path.isfile(DATA_PATH):
+def get_dataset_size() -> int:
+    if not DATA_PATH.is_file(): #use is_file() for Path objects
         return 0
-
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
-        return sum(1 for line in f) - 1  # minus header
+    try:
+        #a more robust way to count lines in a CSV, pandas can also do this
+        df = pd.read_csv(DATA_PATH)
+        return len(df)
+    except pd.errors.EmptyDataError:
+        return 0
+    except Exception: #catch other potential read errors
+        #fallback for potentially malformed CSV, though less likely
+        with open(DATA_PATH, "r", encoding="utf-8") as f:
+            return sum(1 for _ in f) - 1 #minus header

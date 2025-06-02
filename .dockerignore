@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Poetry / Python
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+
+# IDE / OS specific
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Cache directory (managed by application, not needed in image)
+.cache/
+
+# Local dataset (if you want to mount it or build it into the image another way)
+
+
