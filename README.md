@@ -1,10 +1,10 @@
 # Website Categorizer
 
 A simple ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
-Built using **Streamlit** for the frontend and a **Logistic Regression** model trained on web content for classification.
+Built using **Streamlit** for the frontend and an ensemble of **Logistic Regression** and **SVM** models trained on web content for classification.
 > The dataset created using scraping the web (and stemmed and cleaned text) for this project is included in this repo
 
-> At present, this model has achieved 82.22% accuracy
+> At present, this model has achieved 86.67% ensemble accuracy
 
 ## Features
 -  Accepts any valid website URL
@@ -30,8 +30,8 @@ website-categorizer/
 │   └── models/
 │       ├── website_vectorizer.joblib           #TF-IDF vectorizer
 │       ├── logistic_regression_model.joblib    #Logistic Regression model
-│       ├── svm_model.joblib                    #SVM model
-│       └── xgboost_model.joblib                #XGBoost model
+│       └── svm_model.joblib                    #SVM model
+│        
 ├── .cache/                     #directory for caching (created by joblib.Memory, add to .gitignore)
 ├── main.py
 ├── websites_dataset.csv        #dataset
@@ -57,10 +57,18 @@ Follow official instructions: https://python-poetry.org/docs/#installation
 poetry install
 ```
 
-### 4. Run the streamlit app
+### 4. Run main.py (CLI)
 ```bash
-poetry run streamlit run app.py
+poetry run python main.py
 ```
+> You will have to run main.py and train the model before running Streamlit app
+
+### 5. Run the streamlit app
+```bash
+poetry run streamlit run app/app.py
+```
+> Note: you may have to modify PATH for running app.py as it is not is project's root directory
+$env:PYTHONPATH = "your-path-to-local-project-root"
 
 
 
