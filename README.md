@@ -68,7 +68,8 @@ poetry run python main.py
 poetry run streamlit run app/app.py
 ```
 > Note: you may have to modify PATH for running app.py as it is not is project's root directory
-$env:PYTHONPATH = "your-path-to-local-project-root"
 
-
-
+For eg:
+```bash
+$env:PYTHONPATH="C:\Users\USER\desktop\website-categorizer" #modify as per path to local directory on your system"
+```
