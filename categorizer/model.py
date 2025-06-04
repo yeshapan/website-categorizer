@@ -6,6 +6,7 @@ from sklearn.svm import LinearSVC
 from sklearn.metrics import classification_report, accuracy_score
 import joblib
 from pathlib import Path
+import numpy as np
 
 #define paths
 MODEL_DIR = Path("categorizer/models")
@@ -21,6 +22,7 @@ def train_model(df: pd.DataFrame):
     Trains a TF-IDF vectorizer and two classification models (Logistic Regression, SVM).
     Saves the vectorizer and trained models.
     Reports accuracy for each model and the ensemble.
+    Ensemble prioritizes SVM if Logistic Regression and SVM disagree.
     """
     df = df.dropna(subset=['text', 'category'])
     if df.empty or len(df['category'].unique()) < 2:
@@ -37,10 +39,10 @@ def train_model(df: pd.DataFrame):
     print("Vectorizer saved.")
 
     #train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.18, random_state=42)
 
     #models definition with more extensive hyperparameter tuning
-    models = {
+    models = { # Original variable name
         "Logistic Regression": {
             "model": LogisticRegression(max_iter=2000, solver="liblinear", class_weight="balanced"),
             "params": {"C": [0.1, 1, 5, 7.5, 10, 20], "penalty": ["l1", "l2"]}
@@ -77,19 +79,57 @@ def train_model(df: pd.DataFrame):
         print(f"{name} Accuracy: {acc * 100:.2f}%")
 
 
-    #ensemble Prediction (Majority Vote) using Pandas mode
-    if test_predictions: #ensure there are predictions to ensemble
-        stacked_preds_df = pd.DataFrame(test_predictions)
+    # Ensemble Prediction Logic
+    # Prioritize SVM (weight 0.7) vs Logistic Regression (weight 0.3) if both available and disagree.
+    # Otherwise, fall back to general majority vote.
+    ensemble_type_message = "" # To specify which ensemble was used
 
-        # .mode(axis=1) returns a DataFrame. We take the first mode if multiple exist for a row.
-        ensemble_pred_flat = stacked_preds_df.mode(axis=1).iloc[:, 0].values
+    if "Logistic Regression" in test_predictions and "SVM" in test_predictions:
+        ensemble_type_message = "Ensemble (Weighted Choice: SVM 0.7, LR 0.3)"
+        print(f"\nCalculating {ensemble_type_message}...")
+        
+        preds_lr = test_predictions["Logistic Regression"]
+        preds_svm = test_predictions["SVM"]
+        
+        ensemble_final_predictions_list = []
+        # Assuming preds_lr and preds_svm are of the same length as y_test
+        for i in range(len(y_test)):
+            lr_pred_sample = preds_lr[i]
+            svm_pred_sample = preds_svm[i]
 
+            if lr_pred_sample == svm_pred_sample:
+                ensemble_final_predictions_list.append(lr_pred_sample)
+            else:
+                # SVM prediction (higher weight) wins in case of disagreement
+                ensemble_final_predictions_list.append(svm_pred_sample)
+        
+        ensemble_pred_flat = np.array(ensemble_final_predictions_list)
         ensemble_acc = accuracy_score(y_test, ensemble_pred_flat)
-        print(f"\nEnsemble (Majority Vote) Accuracy: {ensemble_acc * 100:.2f}%")
-        print("\nClassification Report for Ensemble:")
-        print(classification_report(y_test, ensemble_pred_flat, zero_division=0))
+        print(f"\n{ensemble_type_message} Accuracy: {ensemble_acc * 100:.2f}%")
+        print(f"\nClassification Report for {ensemble_type_message}:")
+        # Ensure all unique classes from y_test and predictions are included in the report
+        report_labels = sorted(list(set(y_test) | set(ensemble_pred_flat)))
+        print(classification_report(y_test, ensemble_pred_flat, labels=report_labels, zero_division=0))
+
+    elif test_predictions: #fallback if the specific LR/SVM combo wasn't available, but other predictions exist
+        ensemble_type_message = "Ensemble (Majority Vote - Fallback)"
+        print(f"\nBoth Logistic Regression and SVM predictions not simultaneously available for weighted choice.")
+        print(f"Performing standard Majority Vote on available model predictions ({ensemble_type_message})...")
+        
+        stacked_preds_df = pd.DataFrame(test_predictions)
+        if not stacked_preds_df.empty:
+            # .mode(axis=1) returns a DataFrame. We take the first mode if multiple exist for a row.
+            ensemble_pred_flat = stacked_preds_df.mode(axis=1).iloc[:, 0].values
+            ensemble_acc = accuracy_score(y_test, ensemble_pred_flat)
+            print(f"\n{ensemble_type_message} Accuracy: {ensemble_acc * 100:.2f}%")
+            print(f"\nClassification Report for {ensemble_type_message}:")
+            report_labels_fallback = sorted(list(set(y_test) | set(ensemble_pred_flat)))
+            print(classification_report(y_test, ensemble_pred_flat, labels=report_labels_fallback, zero_division=0))
+        else:
+            print("\nNo predictions available in test_predictions for fallback majority vote.")
     else:
         print("\nNo model predictions available for ensemble.")
+
 
     if not any([LOGISTIC_MODEL_PATH.exists(), SVM_MODEL_PATH.exists()]):
         print("No models were saved. Please check training logs.")
@@ -101,7 +141,7 @@ def load_trained_models_and_vectorizer():
         raise FileNotFoundError(f"Vectorizer not found at {VECTORIZER_PATH}. Please train the models first.")
     vectorizer = joblib.load(VECTORIZER_PATH)
 
-    models_to_load = {
+    models_to_load = { # Original variable name
         "Logistic Regression": LOGISTIC_MODEL_PATH,
         "SVM": SVM_MODEL_PATH
     }
@@ -112,8 +152,9 @@ def load_trained_models_and_vectorizer():
         else:
             print(f"Warning: Model file for {name} not found at {path}. It will be excluded from ensemble.")
 
-    if not loaded_models:
-        raise FileNotFoundError("No trained models found. Please train the models first.")
+    if not loaded_models: # This check was inside predict_category_ensemble before, but could be here too
+        # Or let predict handle it, original code was fine without this specific raise here
+        pass # Keeping structure similar, predict_category_ensemble handles empty loaded_models
 
     return vectorizer, loaded_models
 
@@ -125,7 +166,9 @@ memory = joblib.Memory(CACHE_DIR, verbose=0)
 @memory.cache
 def predict_category_ensemble(url: str):
     """
-    Scrapes a URL, preprocesses the text, and predicts category using an ensemble of models.
+    Scrapes a URL, preprocesses the text, and predicts category.
+    If Logistic Regression and SVM both predict, SVM's choice is prioritized in case of disagreement.
+    Otherwise, uses a general majority vote of available model predictions.
     Uses caching to store and retrieve results for previously seen URLs.
     """
     from categorizer.scraper import scrape_website #local import for caching
@@ -143,39 +186,80 @@ def predict_category_ensemble(url: str):
         return "Error: Could not preprocess text", preview_text
 
     try:
-        vectorizer, models = load_trained_models_and_vectorizer()
+        vectorizer, models = load_trained_models_and_vectorizer() # 'models' is the original name for loaded models here
     except FileNotFoundError as e:
         return f"Error: {e}", preview_text
     except Exception as e: #catch any other loading error
         return f"Error loading models/vectorizers: {e}", preview_text
 
-    if not models:
+    if not models: # Original check for no models loaded
         return "Error: No models loaded for prediction.", preview_text
 
     text_vec = vectorizer.transform([clean_text])
-    predictions = []
+    final_prediction = None
+    
+    # Attempt weighted choice (SVM priority) if both LR and SVM are loaded
+    if "Logistic Regression" in models and "SVM" in models:
+        pred_lr, pred_svm = None, None
+        lr_model_available, svm_model_available = True, True
 
-    for model_name, model in models.items():
         try:
-            pred = model.predict(text_vec)[0]
-            predictions.append(str(pred)) #ensure all predictions are strings before mode calculation
+            pred_lr = str(models["Logistic Regression"].predict(text_vec)[0])
         except Exception as e:
-            print(f"Error predicting with {model_name} for URL {url}: {e}")
-            
+            lr_model_available = False
+            print(f"Warning: Error predicting with Logistic Regression for URL {url}: {e}. It will be excluded from this attempt.")
+        
+        try:
+            pred_svm = str(models["SVM"].predict(text_vec)[0])
+        except Exception as e:
+            svm_model_available = False
+            print(f"Warning: Error predicting with SVM for URL {url}: {e}. It will be excluded from this attempt.")
 
-    if not predictions:
-        return "Error: All models failed to predict or no valid predictions were made.", preview_text
+        if lr_model_available and svm_model_available and pred_lr is not None and pred_svm is not None:
+            if pred_lr == pred_svm:
+                final_prediction = pred_lr
+            else:
+                final_prediction = pred_svm # SVM wins
+            print("Used weighted choice (LR/SVM with SVM priority) for prediction.")
+        elif svm_model_available and pred_svm is not None: # Only SVM predicted (or LR failed)
+            final_prediction = pred_svm
+            print("Used SVM prediction (LR failed or was unavailable).")
+        elif lr_model_available and pred_lr is not None: # Only LR predicted (or SVM failed)
+            final_prediction = pred_lr
+            print("Used Logistic Regression prediction (SVM failed or was unavailable).")
+        # If final_prediction is still None here, it means both LR and SVM failed to predict or weren't fully available.
+        # The code will then fall through to the general majority vote.
+    
+    # Fallback to original majority vote if weighted choice wasn't made or wasn't applicable
+    if final_prediction is None:
+        if "Logistic Regression" in models and "SVM" in models :
+             print("Weighted choice did not yield a result, falling back to general majority vote for all available models.")
+        else:
+             print("Both Logistic Regression and SVM not available for weighted choice, using general majority vote.")
 
-    #perform majority vote using pandas.Series.mode()
-    final_prediction_series = pd.Series(predictions).mode()
+        predictions = [] # Original variable name from your code
+        for model_name, model in models.items():
+            try:
+                pred = model.predict(text_vec)[0]
+                predictions.append(str(pred)) #ensure all predictions are strings before mode calculation
+            except Exception as e:
+                print(f"Error predicting with {model_name} for URL {url} during fallback: {e}")
+        
+        if not predictions:
+            return "Error: All models failed to predict or no valid predictions were made (fallback).", preview_text
 
-    if not final_prediction_series.empty:
-        final_prediction = final_prediction_series[0] #take the first mode
-    elif predictions: #fallback if mode is empty but there were predictions
-        final_prediction = predictions[0] #default to the first available prediction
-    else: #should not be reached if the above "if not predictions" check works
-        return "Error: No predictions available to determine final category.", preview_text
+        final_prediction_series = pd.Series(predictions).mode()
 
+        if not final_prediction_series.empty:
+            final_prediction = final_prediction_series[0] #take the first mode
+        elif predictions: #fallback if mode is empty but there were predictions
+            final_prediction = predictions[0] #default to the first available prediction
+        else: #should not be reached if the above "if not predictions" check works
+            return "Error: No predictions available to determine final category (fallback).", preview_text
+    
+    if final_prediction is None: # Final safety net
+        return "Error: Could not determine a final prediction for the URL.", preview_text
+        
     return str(final_prediction), preview_text
 
 def clear_prediction_cache():

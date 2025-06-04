@@ -1,10 +1,10 @@
 # Website Categorizer
 
 A simple ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
-Built using **Streamlit** for the frontend and an ensemble of **Logistic Regression** and **SVM** models trained on web content for classification.
+Built using **Streamlit** for the UI1 and an ensemble of **Logistic Regression** and **SVM** models trained on web content for classification.
 > The dataset created using scraping the web (and stemmed and cleaned text) for this project is included in this repo
 
-> At present, this model has achieved 86.67% ensemble accuracy
+> At present, this model has achieved 98.00% ensemble accuracy
 
 ## Features
 -  Accepts any valid website URL
