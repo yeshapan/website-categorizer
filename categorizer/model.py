@@ -78,7 +78,7 @@ def train_model(df: pd.DataFrame):
 
 
     #ensemble Prediction (Majority Vote) using Pandas mode
-    if test_predictions: # Ensure there are predictions to ensemble
+    if test_predictions: #ensure there are predictions to ensemble
         stacked_preds_df = pd.DataFrame(test_predictions)
 
         # .mode(axis=1) returns a DataFrame. We take the first mode if multiple exist for a row.
@@ -161,7 +161,7 @@ def predict_category_ensemble(url: str):
             predictions.append(str(pred)) #ensure all predictions are strings before mode calculation
         except Exception as e:
             print(f"Error predicting with {model_name} for URL {url}: {e}")
-            # Optionally skip this model's prediction or handle error
+            
 
     if not predictions:
         return "Error: All models failed to predict or no valid predictions were made.", preview_text

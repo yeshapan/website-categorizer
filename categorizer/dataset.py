@@ -9,8 +9,8 @@ DATA_PATH = Path("websites_dataset.csv")
 def load_dataset() -> pd.DataFrame:
     if DATA_PATH.exists():
         df = pd.read_csv(DATA_PATH)
-        #ensure column names are consistent, your model.py uses 'text' and 'category'
-        df = df.rename(columns={"url": "url", "text": "text", "label": "category"}) # Assuming 'label' was old name
+        #ensure column names are consistent (coz our model.py uses 'text' and 'category')
+        df = df.rename(columns={"url": "url", "text": "text", "label": "category"}) 
         return df
     else:
         #ensure columns match what add_entry and model expects
