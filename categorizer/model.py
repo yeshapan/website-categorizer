@@ -3,10 +3,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 import joblib
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns #for heatmap
 
 #define paths
 MODEL_DIR = Path("categorizer/models")
@@ -23,6 +25,7 @@ def train_model(df: pd.DataFrame):
     Saves the vectorizer and trained models.
     Reports accuracy for each model and the ensemble.
     Ensemble prioritizes SVM if Logistic Regression and SVM disagree.
+    Generates and displays a heatmap of the confusion matrix for the ensemble model.
     """
     df = df.dropna(subset=['text', 'category'])
     if df.empty or len(df['category'].unique()) < 2:
@@ -39,10 +42,10 @@ def train_model(df: pd.DataFrame):
     print("Vectorizer saved.")
 
     #train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.18, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X_vec, y, test_size=0.2, random_state=42)
 
     #models definition with more extensive hyperparameter tuning
-    models = { # Original variable name
+    models = {
         "Logistic Regression": {
             "model": LogisticRegression(max_iter=2000, solver="liblinear", class_weight="balanced"),
             "params": {"C": [0.1, 1, 5, 7.5, 10, 20], "penalty": ["l1", "l2"]}
@@ -58,7 +61,7 @@ def train_model(df: pd.DataFrame):
 
     for name, model_info in models.items():
         print(f"\nTraining {name}...")
-        grid_search = GridSearchCV(model_info["model"], model_info["params"], cv=5, scoring='accuracy', n_jobs=-1) # Increased cv
+        grid_search = GridSearchCV(model_info["model"], model_info["params"], cv=5, scoring='accuracy', n_jobs=-1)
         grid_search.fit(X_train, y_train)
         best_model = grid_search.best_estimator_
 
@@ -80,9 +83,7 @@ def train_model(df: pd.DataFrame):
 
 
     # Ensemble Prediction Logic
-    # Prioritize SVM (weight 0.7) vs Logistic Regression (weight 0.3) if both available and disagree.
-    # Otherwise, fall back to general majority vote.
-    ensemble_type_message = "" # To specify which ensemble was used
+    ensemble_type_message = ""
 
     if "Logistic Regression" in test_predictions and "SVM" in test_predictions:
         ensemble_type_message = "Ensemble (Weighted Choice: SVM 0.7, LR 0.3)"
@@ -92,7 +93,6 @@ def train_model(df: pd.DataFrame):
         preds_svm = test_predictions["SVM"]
         
         ensemble_final_predictions_list = []
-        # Assuming preds_lr and preds_svm are of the same length as y_test
         for i in range(len(y_test)):
             lr_pred_sample = preds_lr[i]
             svm_pred_sample = preds_svm[i]
@@ -107,9 +107,17 @@ def train_model(df: pd.DataFrame):
         ensemble_acc = accuracy_score(y_test, ensemble_pred_flat)
         print(f"\n{ensemble_type_message} Accuracy: {ensemble_acc * 100:.2f}%")
         print(f"\nClassification Report for {ensemble_type_message}:")
-        # Ensure all unique classes from y_test and predictions are included in the report
         report_labels = sorted(list(set(y_test) | set(ensemble_pred_flat)))
         print(classification_report(y_test, ensemble_pred_flat, labels=report_labels, zero_division=0))
+
+        # Generate and display confusion matrix heatmap
+        cm = confusion_matrix(y_test, ensemble_pred_flat, labels=report_labels)
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=report_labels, yticklabels=report_labels)
+        plt.title(f"Confusion Matrix for {ensemble_type_message}")
+        plt.ylabel("Actual Category")
+        plt.xlabel("Predicted Category")
+        plt.show()
 
     elif test_predictions: #fallback if the specific LR/SVM combo wasn't available, but other predictions exist
         ensemble_type_message = "Ensemble (Majority Vote - Fallback)"
@@ -118,13 +126,22 @@ def train_model(df: pd.DataFrame):
         
         stacked_preds_df = pd.DataFrame(test_predictions)
         if not stacked_preds_df.empty:
-            # .mode(axis=1) returns a DataFrame. We take the first mode if multiple exist for a row.
             ensemble_pred_flat = stacked_preds_df.mode(axis=1).iloc[:, 0].values
             ensemble_acc = accuracy_score(y_test, ensemble_pred_flat)
             print(f"\n{ensemble_type_message} Accuracy: {ensemble_acc * 100:.2f}%")
             print(f"\nClassification Report for {ensemble_type_message}:")
             report_labels_fallback = sorted(list(set(y_test) | set(ensemble_pred_flat)))
             print(classification_report(y_test, ensemble_pred_flat, labels=report_labels_fallback, zero_division=0))
+
+            # Generate and display confusion matrix heatmap for fallback ensemble
+            cm = confusion_matrix(y_test, ensemble_pred_flat, labels=report_labels_fallback)
+            plt.figure(figsize=(10, 8))
+            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=report_labels_fallback, yticklabels=report_labels_fallback)
+            plt.title(f"Confusion Matrix for {ensemble_type_message}")
+            plt.ylabel("Actual Category")
+            plt.xlabel("Predicted Category")
+            plt.show()
+
         else:
             print("\nNo predictions available in test_predictions for fallback majority vote.")
     else:
@@ -141,7 +158,7 @@ def load_trained_models_and_vectorizer():
         raise FileNotFoundError(f"Vectorizer not found at {VECTORIZER_PATH}. Please train the models first.")
     vectorizer = joblib.load(VECTORIZER_PATH)
 
-    models_to_load = { # Original variable name
+    models_to_load = {
         "Logistic Regression": LOGISTIC_MODEL_PATH,
         "SVM": SVM_MODEL_PATH
     }
@@ -151,10 +168,6 @@ def load_trained_models_and_vectorizer():
             loaded_models[name] = joblib.load(path)
         else:
             print(f"Warning: Model file for {name} not found at {path}. It will be excluded from ensemble.")
-
-    if not loaded_models: # This check was inside predict_category_ensemble before, but could be here too
-        # Or let predict handle it, original code was fine without this specific raise here
-        pass # Keeping structure similar, predict_category_ensemble handles empty loaded_models
 
     return vectorizer, loaded_models
 
@@ -186,13 +199,13 @@ def predict_category_ensemble(url: str):
         return "Error: Could not preprocess text", preview_text
 
     try:
-        vectorizer, models = load_trained_models_and_vectorizer() # 'models' is the original name for loaded models here
+        vectorizer, models = load_trained_models_and_vectorizer()
     except FileNotFoundError as e:
         return f"Error: {e}", preview_text
     except Exception as e: #catch any other loading error
         return f"Error loading models/vectorizers: {e}", preview_text
 
-    if not models: # Original check for no models loaded
+    if not models:
         return "Error: No models loaded for prediction.", preview_text
 
     text_vec = vectorizer.transform([clean_text])
@@ -221,27 +234,25 @@ def predict_category_ensemble(url: str):
             else:
                 final_prediction = pred_svm # SVM wins
             print("Used weighted choice (LR/SVM with SVM priority) for prediction.")
-        elif svm_model_available and pred_svm is not None: # Only SVM predicted (or LR failed)
+        elif svm_model_available and pred_svm is not None:
             final_prediction = pred_svm
             print("Used SVM prediction (LR failed or was unavailable).")
-        elif lr_model_available and pred_lr is not None: # Only LR predicted (or SVM failed)
+        elif lr_model_available and pred_lr is not None:
             final_prediction = pred_lr
             print("Used Logistic Regression prediction (SVM failed or was unavailable).")
-        # If final_prediction is still None here, it means both LR and SVM failed to predict or weren't fully available.
-        # The code will then fall through to the general majority vote.
     
     # Fallback to original majority vote if weighted choice wasn't made or wasn't applicable
     if final_prediction is None:
         if "Logistic Regression" in models and "SVM" in models :
-             print("Weighted choice did not yield a result, falling back to general majority vote for all available models.")
+            print("Weighted choice did not yield a result, falling back to general majority vote for all available models.")
         else:
-             print("Both Logistic Regression and SVM not available for weighted choice, using general majority vote.")
+            print("Both Logistic Regression and SVM not available for weighted choice, using general majority vote.")
 
-        predictions = [] # Original variable name from your code
+        predictions = []
         for model_name, model in models.items():
             try:
                 pred = model.predict(text_vec)[0]
-                predictions.append(str(pred)) #ensure all predictions are strings before mode calculation
+                predictions.append(str(pred))
             except Exception as e:
                 print(f"Error predicting with {model_name} for URL {url} during fallback: {e}")
         
@@ -251,13 +262,13 @@ def predict_category_ensemble(url: str):
         final_prediction_series = pd.Series(predictions).mode()
 
         if not final_prediction_series.empty:
-            final_prediction = final_prediction_series[0] #take the first mode
-        elif predictions: #fallback if mode is empty but there were predictions
-            final_prediction = predictions[0] #default to the first available prediction
-        else: #should not be reached if the above "if not predictions" check works
+            final_prediction = final_prediction_series[0]
+        elif predictions:
+            final_prediction = predictions[0]
+        else:
             return "Error: No predictions available to determine final category (fallback).", preview_text
     
-    if final_prediction is None: # Final safety net
+    if final_prediction is None:
         return "Error: Could not determine a final prediction for the URL.", preview_text
         
     return str(final_prediction), preview_text
