@@ -76,34 +76,35 @@ $env:PYTHONPATH="C:\Users\USER\desktop\website-categorizer" #modify as per path 
 
 
 ### Overview of Project Pipeline
-This project is structured into two distinct pipelines: an offline Training Pipeline for building the models and a live Inference Pipeline for categorizing new websites via the Streamlit app
 
 **Training Pipeline (Offline)**
 > this is the process to train the models
-* Data Loading - csv file is loaded into a pandas DataFrame
-* Text Preprocessing - Website text is cleaned using the preprocess.py script, which involves:
-    * Converting text to lowercase
-    * Removing digits and punctuation
-    * Removing NLTK English stopwords
-    * Applying the Porter Stemmer to normalize words
-* Feature Extraction - A TfidfVectorizer is fit on the entire preprocessed text dataset to learn the vocabulary and IDF weights (this vectorizer is saved as website_vectorizer.joblib)
+* Load csv file into a pandas df
+* Text Preprocessing 
+    * Convert text to lowercase
+    * Remove digits and punctuation
+    * Remove NLTK English stopwords
+    * Apply Porter Stemmer to normalize words
+* Feature Extraction - TfidfVectorizer is fit on the preprocessed text dataset (learn the vocabulary and IDF weights) 
 * Model Training:
-    * The data is split into training and testing sets
-    * GridSearchCV is used to find the optimal hyperparameters for both a LogisticRegression model and a LinearSVC (SVM) model
-    * The best-performing versions of both models are saved to disk (logistic_regression_model.joblib and svm_model.joblib).
+    * Train - test split
+    * GridSearchCV is used to find the optimal hyperparameters for both models
+    * The best-performing versions of both LR and SVM saved to disk
 
 **Inference Pipeline (Live)**
 > this is the step-by-step process that runs when a user enters a URL into the Streamlit app:
-* Input - A user submits a URL through the Streamlit UI (app/app.py)
-* Caching - The system first checks if the result for this URL is already stored in the .cache/ directory (using joblib.Memory). If found, the cached prediction is returned immediately
-* Scraping - If not cached, scraper.py fetches the URL's content using requests. BeautifulSoup is used to parse the HTML (removing all <script> and <style> tags to extract only the visible text)
-* Preprocessing - The raw scraped text is cleaned using the same preprocess_text function from the training pipeline
-* Feature Extraction - The saved website_vectorizer.joblib is loaded and used to transform the clean text into a TF-IDF numerical vector
+* Input - user submits a URL via Streamlit UI
+* Caching - The system checks if URL already stored in the .cache/ directory → cached prediction returned
+* Scraping - If not cached, scraper.py fetches the URL's content using requests. BeautifulSoup is used to parse the HTML
+* Preprocessing
+* Feature Extraction
 * Ensemble Prediction:
-    * The saved logistic_regression_model.joblib and svm_model.joblib are loaded
-    * Both models generate a prediction for the text vector
-    * An ensemble rule is applied: If the two models disagree, the SVM's prediction is prioritized as the final result. If they agree, that prediction is used
-* Output- The final predicted category (e.g., "News", "E-commerce") is returned and displayed to the user in the Streamlit app
+    * The saved .joblib models loaded
+    * Both models generate prediction for the text vector
+    * An ensemble rule is applied:
+            * If the models disagree;  SVM's prediction prioritized as final result
+            * If they agree → prediction is used
+* Output- The final predicted category is returned and displayed to the user in the Streamlit app
 
 
 
