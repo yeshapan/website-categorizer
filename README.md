@@ -1,12 +1,12 @@
 # Website Categorizer
 
-A simple ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
-Built using **Streamlit** for the UI and an ensemble of **Logistic Regression** and **SVM** models (weighted choice: SVM-0.7 and LR-0.3) trained on web content for classification.
+A lightweight simple ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
+Built using **Streamlit** for the UI and an ensemble of **Logistic Regression** and **SVM** models (weighted stack: SVM-0.7 and LR-0.3) trained on web content for classification.
 > The dataset created using scraping the web (and stemmed and cleaned text) for this project is included in this repo
 
-> At present, this model has achieved 96.36% ensemble accuracy
+> #### At present, this model has achieved **96.36% ensemble accuracy**
 
-## Features
+### Features
 -  Accepts any valid website URL
 -  Extracts and cleans website text by scraping the web
 -  Predicts the website category using machine learning
@@ -16,7 +16,7 @@ Built using **Streamlit** for the UI and an ensemble of **Logistic Regression** 
 
 > here's a brief demo video showing the working of this project on localhost: https://youtu.be/UgTwH9aM_Bo
 
-## Folder Structure
+### Folder Structure
 ``` bash
 website-categorizer/
 ├── app/
@@ -42,34 +42,68 @@ website-categorizer/
 └── ReadME.md
 ```
 
-## Steps to replicate the project:
-### 1. Clone the repository
+### Steps to replicate the project:
+#### 1. Clone the repository
 ```bash
 git clone https://github.com/yeshapan/website-categorizer.git
 cd website-categorizer
 ```
 
-### 2. Install Poetry (if not done already)
+#### 2. Install Poetry (if not done already)
 Follow official instructions: https://python-poetry.org/docs/#installation
 
-### 3. Install dependencies via poetry
+#### 3. Install dependencies via poetry
 ```bash
 poetry install
 ```
 
-### 4. Run main.py (CLI)
+#### 4. Run main.py (CLI)
 ```bash
 poetry run python main.py
 ```
 > You will have to run main.py and train the model before running Streamlit app
 
-### 5. Run the streamlit app
+#### 5. Run the streamlit app
 ```bash
 poetry run streamlit run app/app.py
 ```
-> Note: you may have to modify PATH for running app.py as it is not is project's root directory
 
+**Note:** you may have to modify PATH for running app.py as it is not is project's root directory
 For eg:
 ```bash
 $env:PYTHONPATH="C:\Users\USER\desktop\website-categorizer" #modify as per path to local directory on your system"
 ```
+
+
+### Overview of Project Pipeline
+This project is structured into two distinct pipelines: an offline Training Pipeline for building the models and a live Inference Pipeline for categorizing new websites via the Streamlit app
+
+**Training Pipeline (Offline)**
+> this is the process to train the models
+* Data Loading - csv file is loaded into a pandas DataFrame
+* Text Preprocessing - Website text is cleaned using the preprocess.py script, which involves:
+    * Converting text to lowercase
+    * Removing digits and punctuation
+    * Removing NLTK English stopwords
+    * Applying the Porter Stemmer to normalize words
+* Feature Extraction - A TfidfVectorizer is fit on the entire preprocessed text dataset to learn the vocabulary and IDF weights (this vectorizer is saved as website_vectorizer.joblib)
+* Model Training:
+    * The data is split into training and testing sets
+    * GridSearchCV is used to find the optimal hyperparameters for both a LogisticRegression model and a LinearSVC (SVM) model
+    * The best-performing versions of both models are saved to disk (logistic_regression_model.joblib and svm_model.joblib).
+
+**Inference Pipeline (Live)**
+> this is the step-by-step process that runs when a user enters a URL into the Streamlit app:
+* Input - A user submits a URL through the Streamlit UI (app/app.py)
+* Caching - The system first checks if the result for this URL is already stored in the .cache/ directory (using joblib.Memory). If found, the cached prediction is returned immediately
+* Scraping - If not cached, scraper.py fetches the URL's content using requests. BeautifulSoup is used to parse the HTML (removing all <script> and <style> tags to extract only the visible text)
+* Preprocessing - The raw scraped text is cleaned using the same preprocess_text function from the training pipeline
+* Feature Extraction - The saved website_vectorizer.joblib is loaded and used to transform the clean text into a TF-IDF numerical vector
+* Ensemble Prediction:
+    * The saved logistic_regression_model.joblib and svm_model.joblib are loaded
+    * Both models generate a prediction for the text vector
+    * An ensemble rule is applied: If the two models disagree, the SVM's prediction is prioritized as the final result. If they agree, that prediction is used
+* Output- The final predicted category (e.g., "News", "E-commerce") is returned and displayed to the user in the Streamlit app
+
+
+
