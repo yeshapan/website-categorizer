@@ -1,12 +1,12 @@
-# Website Categorizer
+## Website Categorizer
 
 A lightweight simple ML-powered web app that scrapes website content and classifies the site into relevant categories based on textual data.
-Built using **Streamlit** for the UI and an ensemble of **Logistic Regression** and **SVM** models (weighted stack: SVM-0.7 and LR-0.3) trained on web content for classification.
+Built using **Streamlit** for the UI and an ensemble of  **Random Forest Classifier**, **SVM** and **Logistic Regression** models (weighted stack: RF-0.9825, SVM-0.9825 and LR-0.9649) trained on web content for classification.
 > The dataset created using scraping the web (and stemmed and cleaned text) for this project is included in this repo
 
-> #### At present, this model has achieved **96.36% ensemble accuracy**
+> At present, this model has achieved **98.25% ensemble accuracy**
 
-### Features
+#### **Features**
 -  Accepts any valid website URL
 -  Extracts and cleans website text by scraping the web
 -  Predicts the website category using machine learning
@@ -16,7 +16,7 @@ Built using **Streamlit** for the UI and an ensemble of **Logistic Regression** 
 
 > here's a brief demo video showing the working of this project on localhost: https://youtu.be/UgTwH9aM_Bo
 
-### Folder Structure
+#### **Folder Structure**
 ``` bash
 website-categorizer/
 ├── app/
@@ -28,9 +28,10 @@ website-categorizer/
 │   ├── scraper.py          #for fetching website content
 │   ├── preprocess.py       #for cleaning/preparing text data
 │   └── models/
-│       ├── website_vectorizer.joblib           #TF-IDF vectorizer
-│       ├── logistic_regression_model.joblib    #Logistic Regression model
-│       └── svm_model.joblib                    #SVM model
+│       ├── website_vectorizer.joblib              #TF-IDF vectorizer
+│       ├── logistic_regression_model.joblib       #Logistic Regression model
+│       ├── random_forest_classifer_model.joblib   #Random Forest Classifier model
+│       └── svm_model.joblib                       #SVM model
 │        
 ├── .cache/                     #directory for caching (created by joblib.Memory, add to .gitignore)
 ├── main.py
@@ -42,28 +43,28 @@ website-categorizer/
 └── ReadME.md
 ```
 
-### Steps to replicate the project:
-#### 1. Clone the repository
+#### **Steps to replicate the project:**
+##### 1. Clone the repository
 ```bash
 git clone https://github.com/yeshapan/website-categorizer.git
 cd website-categorizer
 ```
 
-#### 2. Install Poetry (if not done already)
-Follow official instructions: https://python-poetry.org/docs/#installation
+##### 2. Install Poetry (if not done already)
+> Follow official instructions: https://python-poetry.org/docs/#installation
 
 #### 3. Install dependencies via poetry
 ```bash
 poetry install
 ```
 
-#### 4. Run main.py (CLI)
+##### 4. Run main.py (CLI)
 ```bash
 poetry run python main.py
 ```
 > You will have to run main.py and train the model before running Streamlit app
 
-#### 5. Run the streamlit app
+##### 5. Run the streamlit app
 ```bash
 poetry run streamlit run app/app.py
 ```
@@ -75,7 +76,7 @@ $env:PYTHONPATH="C:\Users\USER\desktop\website-categorizer" #modify as per path 
 ```
 
 
-### Overview of Project Pipeline
+#### **Overview of Project Pipeline**
 
 **Training Pipeline (Offline)**
 > this is the process to train the models
@@ -100,10 +101,12 @@ $env:PYTHONPATH="C:\Users\USER\desktop\website-categorizer" #modify as per path 
 * Feature Extraction
 * Ensemble Prediction:
     * The saved .joblib models loaded
-    * Both models generate prediction for the text vector
+    * All three models generate prediction for the text vector
     * An ensemble rule is applied:
-            * If the models disagree;  SVM's prediction prioritized as final result
-            * If they agree → prediction is used
+         * Each model is assigned a specific weight based on its individual validation accuracy (SVM: 0.9825, Random Forest: 0.9825, Logistic Regression: 0.9649)
+         * The system sums the weights for every category predicted by the three models
+         * The category with the highest accumulated score is selected as the final result. (In the rare event of a mathematical tie, the Random Forest prediction is prioritized).
+            
 * Output- The final predicted category is returned and displayed to the user in the Streamlit app
 
 
