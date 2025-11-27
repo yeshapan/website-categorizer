@@ -11,18 +11,18 @@ MODEL_DIR = "categorizer/models"  # Define the model directory
 VECTORIZER_PATH = os.path.join(MODEL_DIR, "website_vectorizer.joblib")
 LOGISTIC_MODEL_PATH = os.path.join(MODEL_DIR, "logistic_regression_model.joblib")
 SVM_MODEL_PATH = os.path.join(MODEL_DIR, "svm_model.joblib")
+RF_MODEL_PATH = os.path.join(MODEL_DIR, "random_forest_model.joblib")
 
 MODELS_EXIST = False
 try:
-    #attempt to load to see if they are present and valid
-    # Unpack the returned values; we mainly care that the call succeeds.
     _vectorizer, _loaded_models = load_trained_models_and_vectorizer()
-    MODELS_EXIST = True # If no error, models are considered loadable
-except FileNotFoundError:
-    MODELS_EXIST = False
-except TypeError: # Catch if an old cached version of the function is somehow called without the new signature
-    MODELS_EXIST = False
-except Exception: #catch other potential load errors (e.g. corrupted files)
+    #ensure all 3 models are present for the full ensemble
+    if _vectorizer and len(_loaded_models) == 3: 
+        MODELS_EXIST = True
+    elif _vectorizer and len(_loaded_models) > 0:
+        #partial load is technically okay but let's warn
+        MODELS_EXIST = True
+except (FileNotFoundError, TypeError, Exception):
     MODELS_EXIST = False
 
 
